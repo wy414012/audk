@@ -2021,6 +2021,7 @@ typedef enum {
   SysCallAllocatePool,
   SysCallFreePool,
   SysCallCloseProtocol,
+  SysCallHandleProtocol,
   //
   // Protocols
   //

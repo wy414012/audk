@@ -2031,6 +2031,7 @@ typedef enum {
   //
   // RuntimeServices
   //
+  SysCallGetVariable,
   //
   // Protocols
   //
@@ -2137,9 +2138,10 @@ typedef struct {
 } EFI_SYSTEM_TABLE;
 
 typedef struct {
-  EFI_SYSTEM_TABLE   SystemTable;
-  VOID               *EntryPoint;
-  EFI_BOOT_SERVICES  *BootServices;
+  EFI_SYSTEM_TABLE     SystemTable;
+  VOID                 *EntryPoint;
+  EFI_BOOT_SERVICES    *BootServices;
+  EFI_RUNTIME_SERVICES *RuntimeServices;
 } RING3_DATA;
 
 typedef struct {

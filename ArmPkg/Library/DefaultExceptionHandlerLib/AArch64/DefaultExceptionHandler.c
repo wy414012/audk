@@ -11,6 +11,7 @@
 #include <Chipset/AArch64.h>
 
 #include <Uefi.h>
+#include <Library/ArmLib.h>
 #include <Library/UefiLib.h>
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
@@ -45,12 +46,6 @@ GetImageName (
   IN  UINTN  FaultAddress,
   OUT UINTN  *ImageBase,
   OUT UINTN  *DebugBase
-  );
-
-VOID
-EFIAPI
-ArmClearPan (
-  VOID
   );
 
 STATIC

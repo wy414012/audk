@@ -776,6 +776,18 @@ ArmHasPan (
   VOID
   );
 
+VOID
+EFIAPI
+ArmSetPan (
+  VOID
+  );
+
+VOID
+EFIAPI
+ArmClearPan (
+  VOID
+  );
+
 #ifdef MDE_CPU_AARCH64
 ///
 /// AArch64-only ID Register Helper functions

@@ -611,6 +611,7 @@
     gEfiMdePkgTokenSpaceGuid.PcdImageProtectionPolicy|0x00000003
   !endif
   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard|TRUE
+  gEfiMdeModulePkgTokenSpaceGuid.PcdEnableUserSpace|TRUE
 
 ################################################################################
 #

@@ -273,6 +273,10 @@ CommonCExceptionHandler (
   IN OUT EFI_SYSTEM_CONTEXT  SystemContext
   )
 {
+  if (ArmHasPan ()) {
+    ArmClearPan ();
+  }
+
   if (ExceptionType <= gMaxExceptionNumber) {
     if (gExceptionHandlers[ExceptionType]) {
       gExceptionHandlers[ExceptionType](ExceptionType, SystemContext);

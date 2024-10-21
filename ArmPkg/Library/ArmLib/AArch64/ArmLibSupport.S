@@ -149,7 +149,12 @@ ASM_FUNC(ArmInvalidateTlb)
    ret
 
 ASM_FUNC(ArmWriteCptr)
-  msr     cptr_el3, x0           // EL3 Coprocessor Trap Reg (CPTR)
+  EL1_OR_EL2_OR_EL3(x1)
+1:ret
+2:msr     cptr_el2, x0
+  b       4f
+3:msr     cptr_el3, x0           // EL3 Coprocessor Trap Reg (CPTR)
+4:isb
   ret
 
 ASM_FUNC(ArmWriteScr)

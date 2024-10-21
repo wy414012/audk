@@ -39,13 +39,9 @@ ArmMemoryAttributeToPageAttribute (
 
     case ARM_MEMORY_REGION_ATTRIBUTE_WRITE_BACK_XP:
     case ARM_MEMORY_REGION_ATTRIBUTE_DEVICE:
-      if (ArmReadCurrentEL () == AARCH64_EL2) {
-        Permissions = TT_XN_MASK;
-      } else {
-        Permissions = TT_UXN_MASK | TT_PXN_MASK;
-      }
-
+      Permissions = TT_UXN_MASK | TT_PXN_MASK;
       break;
+
     default:
       Permissions = 0;
       break;
@@ -444,11 +440,7 @@ GcdAttributeToPageAttribute (
   if (((GcdAttributes & EFI_MEMORY_XP) != 0) ||
       ((GcdAttributes & EFI_MEMORY_CACHETYPE_MASK) == EFI_MEMORY_UC))
   {
-    if (ArmReadCurrentEL () == AARCH64_EL2) {
-      PageAttributes |= TT_XN_MASK;
-    } else {
-      PageAttributes |= TT_UXN_MASK | TT_PXN_MASK;
-    }
+    PageAttributes |= TT_UXN_MASK | TT_PXN_MASK;
   }
 
   if ((GcdAttributes & EFI_MEMORY_RP) == 0) {
@@ -464,12 +456,7 @@ GcdAttributeToPageAttribute (
       PageAttributes |= TT_AP_RW_RW;
     }
   } else {
-    if (ArmReadCurrentEL () == AARCH64_EL1) {
-      //
-      // TODO: Add EL2&0 support.
-      //
-      PageAttributes |= TT_UXN_MASK;
-    }
+    PageAttributes |= TT_UXN_MASK;
 
     if ((GcdAttributes & EFI_MEMORY_RO) != 0) {
       PageAttributes |= TT_AP_NO_RO;
@@ -579,6 +566,7 @@ ArmConfigureMmu (
   UINTN       RootTableEntryCount;
   UINT64      TCR;
   EFI_STATUS  Status;
+  UINTN       Hcr;
 
   if (MemoryTable == NULL) {
     ASSERT (MemoryTable != NULL);
@@ -598,38 +586,25 @@ ArmConfigureMmu (
   T0SZ                = 64 - MaxAddressBits;
   RootTableEntryCount = GetRootTableEntryCount (T0SZ);
 
+  if (ArmReadCurrentEL () == AARCH64_EL2) {
+    //
+    // Switch to EL2&0 translation regime.
+    //
+    Hcr  = ArmReadHcr ();
+    Hcr |= ARM_HCR_E2H | ARM_HCR_TGE;
+    ArmWriteHcr (Hcr);
+    //
+    // Allow access to the Advanced SIMD and floating-point registers.
+    //
+    ArmWriteCptr (AARCH64_CPTR_FPEN);
+  }
+
   //
   // Set TCR that allows us to retrieve T0SZ in the subsequent functions
   //
   // Ideally we will be running at EL2, but should support EL1 as well.
   // UEFI should not run at EL3.
-  if (ArmReadCurrentEL () == AARCH64_EL2) {
-    // Note: Bits 23 and 31 are reserved(RES1) bits in TCR_EL2
-    TCR = T0SZ | (1UL << 31) | (1UL << 23) | TCR_TG0_4KB;
-
-    // Set the Physical Address Size using MaxAddress
-    if (MaxAddress < SIZE_4GB) {
-      TCR |= TCR_PS_4GB;
-    } else if (MaxAddress < SIZE_64GB) {
-      TCR |= TCR_PS_64GB;
-    } else if (MaxAddress < SIZE_1TB) {
-      TCR |= TCR_PS_1TB;
-    } else if (MaxAddress < SIZE_4TB) {
-      TCR |= TCR_PS_4TB;
-    } else if (MaxAddress < SIZE_16TB) {
-      TCR |= TCR_PS_16TB;
-    } else if (MaxAddress < SIZE_256TB) {
-      TCR |= TCR_PS_256TB;
-    } else {
-      DEBUG ((
-        DEBUG_ERROR,
-        "ArmConfigureMmu: The MaxAddress 0x%lX is not supported by this MMU configuration.\n",
-        MaxAddress
-        ));
-      ASSERT (0); // Bigger than 48-bit memory space are not supported
-      return EFI_UNSUPPORTED;
-    }
-  } else if (ArmReadCurrentEL () == AARCH64_EL1) {
+  if ((ArmReadCurrentEL () == AARCH64_EL1) || (ArmReadCurrentEL () == AARCH64_EL2)) {
     // Due to Cortex-A57 erratum #822227 we must set TG1[1] == 1, regardless of EPD1.
     TCR = T0SZ | TCR_TG0_4KB | TCR_TG1_4KB | TCR_EPD1;
 

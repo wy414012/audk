@@ -20,6 +20,8 @@
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
 #include <Library/HobLib.h>
+#include <Library/PcdLib.h>
+
 #include "ArmMmuLibInternal.h"
 
 STATIC  ARM_REPLACE_LIVE_TRANSLATION_ENTRY  mReplaceLiveEntryFunc = ArmReplaceLiveTranslationEntry;
@@ -456,7 +458,9 @@ GcdAttributeToPageAttribute (
       PageAttributes |= TT_AP_RW_RW;
     }
   } else {
-    PageAttributes |= TT_UXN_MASK;
+    if (PcdGetBool (PcdEnableUserSpace) || (ArmReadCurrentEL () == AARCH64_EL1)) {
+      PageAttributes |= TT_UXN_MASK;
+    }
 
     if ((GcdAttributes & EFI_MEMORY_RO) != 0) {
       PageAttributes |= TT_AP_NO_RO;
@@ -586,7 +590,12 @@ ArmConfigureMmu (
   T0SZ                = 64 - MaxAddressBits;
   RootTableEntryCount = GetRootTableEntryCount (T0SZ);
 
-  if (ArmReadCurrentEL () == AARCH64_EL2) {
+  //
+  // Set TCR that allows us to retrieve T0SZ in the subsequent functions
+  //
+  // Ideally we will be running at EL2, but should support EL1 as well.
+  // UEFI should not run at EL3.
+  if (PcdGetBool (PcdEnableUserSpace) && (ArmReadCurrentEL () == AARCH64_EL2)) {
     //
     // Switch to EL2&0 translation regime.
     //
@@ -597,14 +606,59 @@ ArmConfigureMmu (
     // Allow access to the Advanced SIMD and floating-point registers.
     //
     ArmWriteCptr (AARCH64_CPTR_FPEN);
-  }
 
-  //
-  // Set TCR that allows us to retrieve T0SZ in the subsequent functions
-  //
-  // Ideally we will be running at EL2, but should support EL1 as well.
-  // UEFI should not run at EL3.
-  if ((ArmReadCurrentEL () == AARCH64_EL1) || (ArmReadCurrentEL () == AARCH64_EL2)) {
+    // Due to Cortex-A57 erratum #822227 we must set TG1[1] == 1, regardless of EPD1.
+    TCR = T0SZ | TCR_TG0_4KB | TCR_TG1_4KB | TCR_EPD1;
+
+    // Set the Physical Address Size using MaxAddress
+    if (MaxAddress < SIZE_4GB) {
+      TCR |= TCR_IPS_4GB;
+    } else if (MaxAddress < SIZE_64GB) {
+      TCR |= TCR_IPS_64GB;
+    } else if (MaxAddress < SIZE_1TB) {
+      TCR |= TCR_IPS_1TB;
+    } else if (MaxAddress < SIZE_4TB) {
+      TCR |= TCR_IPS_4TB;
+    } else if (MaxAddress < SIZE_16TB) {
+      TCR |= TCR_IPS_16TB;
+    } else if (MaxAddress < SIZE_256TB) {
+      TCR |= TCR_IPS_256TB;
+    } else {
+      DEBUG ((
+        DEBUG_ERROR,
+        "ArmConfigureMmu: The MaxAddress 0x%lX is not supported by this MMU configuration.\n",
+        MaxAddress
+        ));
+      ASSERT (0); // Bigger than 48-bit memory space are not supported
+      return EFI_UNSUPPORTED;
+    }
+  } else if (ArmReadCurrentEL () == AARCH64_EL2) {
+    // Note: Bits 23 and 31 are reserved(RES1) bits in TCR_EL2
+    TCR = T0SZ | (1UL << 31) | (1UL << 23) | TCR_TG0_4KB;
+
+    // Set the Physical Address Size using MaxAddress
+    if (MaxAddress < SIZE_4GB) {
+      TCR |= TCR_PS_4GB;
+    } else if (MaxAddress < SIZE_64GB) {
+      TCR |= TCR_PS_64GB;
+    } else if (MaxAddress < SIZE_1TB) {
+      TCR |= TCR_PS_1TB;
+    } else if (MaxAddress < SIZE_4TB) {
+      TCR |= TCR_PS_4TB;
+    } else if (MaxAddress < SIZE_16TB) {
+      TCR |= TCR_PS_16TB;
+    } else if (MaxAddress < SIZE_256TB) {
+      TCR |= TCR_PS_256TB;
+    } else {
+      DEBUG ((
+        DEBUG_ERROR,
+        "ArmConfigureMmu: The MaxAddress 0x%lX is not supported by this MMU configuration.\n",
+        MaxAddress
+        ));
+      ASSERT (0); // Bigger than 48-bit memory space are not supported
+      return EFI_UNSUPPORTED;
+    }
+  } else if (ArmReadCurrentEL () == AARCH64_EL1) {
     // Due to Cortex-A57 erratum #822227 we must set TG1[1] == 1, regardless of EPD1.
     TCR = T0SZ | TCR_TG0_4KB | TCR_TG1_4KB | TCR_EPD1;
 

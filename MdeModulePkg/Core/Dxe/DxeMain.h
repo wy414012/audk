@@ -229,6 +229,7 @@ typedef struct {
 
   VOID                                    *HiiData;
   BOOLEAN                                 IsUserImage;
+  UINTN                                   UserPageTable;
 } LOADED_IMAGE_PRIVATE_DATA;
 
 typedef struct {
@@ -288,6 +289,10 @@ extern VOID                              *gCoreSysCallStackTop;
 extern VOID                              *gRing3CallStackBase;
 extern VOID                              *gRing3CallStackTop;
 extern VOID                              *gRing3EntryPoint;
+extern VOID                              *gUserPageTableTemplate;
+extern UINTN                             gUserPageTableTemplateSize;
+extern UINTN                             gUserPageTable;
+extern UINTN                             gCorePageTable;
 
 //
 // Service Initialization Functions
@@ -2774,6 +2779,12 @@ InitializeRing3 (
 VOID
 EFIAPI
 FreeProtocolsList (
+  VOID
+  );
+
+VOID
+EFIAPI
+MakeUserPageTableTemplate (
   VOID
   );
 

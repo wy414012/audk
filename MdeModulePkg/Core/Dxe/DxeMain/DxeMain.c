@@ -328,6 +328,8 @@ DxeMain (
 
   ProtectUefiImage (&mCurrentImage->Info, UefiImageOriginFv, &ImageContext, mCurrentImage->IsUserImage);
 
+  MakeUserPageTableTemplate ();
+
   //
   // Call constructor for all libraries
   //

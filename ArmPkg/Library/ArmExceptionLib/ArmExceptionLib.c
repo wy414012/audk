@@ -68,6 +68,20 @@ STATIC CONST BOOLEAN  gArmRelocateVectorTable = TRUE;
 STATIC CONST BOOLEAN  gArmRelocateVectorTable = FALSE;
 #endif
 
+EXCEPTION_ADDRESSES   mAddresses;
+
+VOID
+ExceptionHandlerBase (
+  VOID
+  );
+
+VOID
+ExceptionHandlerFinal (
+  VOID
+  );
+
+extern UINTN          CorePageTable;
+
 /**
 Initializes all CPU exceptions entries and provides the default exception handlers.
 
@@ -273,10 +287,6 @@ CommonCExceptionHandler (
   IN OUT EFI_SYSTEM_CONTEXT  SystemContext
   )
 {
-  if (ArmHasPan ()) {
-    ArmClearPan ();
-  }
-
   if (ExceptionType <= gMaxExceptionNumber) {
     if (gExceptionHandlers[ExceptionType]) {
       gExceptionHandlers[ExceptionType](ExceptionType, SystemContext);
@@ -315,4 +325,29 @@ InitializeSeparateExceptionStacks (
   )
 {
   return EFI_SUCCESS;
+}
+
+EXCEPTION_ADDRESSES *
+EFIAPI
+GetExceptionAddresses (
+  VOID
+  )
+{
+  return &mAddresses;
+}
+
+VOID
+EFIAPI
+SetExceptionAddresses (
+  IN VOID   *Buffer,
+  IN UINTN  BufferSize
+  )
+{
+  mAddresses.ExceptionStackBase   = (UINTN)Buffer;
+  mAddresses.ExceptionStackSize   = BufferSize;
+  mAddresses.ExceptionHandlerBase = (UINTN)ExceptionHandlerBase;
+  mAddresses.ExceptionHandlerSize = (UINTN)ExceptionHandlerFinal - mAddresses.ExceptionHandlerBase;
+  mAddresses.ExceptionDataBase    = (UINTN)&CorePageTable;
+
+  CorePageTable = (UINTN)ArmGetTTBR0BaseAddress ();
 }

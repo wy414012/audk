@@ -2051,7 +2051,6 @@ typedef enum {
   SysCallMax
 } SYS_CALL_TYPE;
 
-#define MAX_LIST 32
 #define SC_FREE_PAGES     7
 #define SC_BLOCK_IO_READ  14
 #define SC_BLOCK_IO_WRITE 15
